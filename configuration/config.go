@@ -18,5 +18,12 @@ func LoadConfig() {
 			MaxNumberOfMessages: 10,
 			WaitTimeSeconds:     3,
 		},
+		DBConfig: model.DBConfig{
+			User:     os.Getenv("DB_USER"),
+			Password: os.Getenv("DB_PASSWORD"),
+			Host:     os.Getenv("DB_HOST"),
+			Port:     os.Getenv("DB_PORT"),
+			Database: os.Getenv("DB_DATABASE"),
+		},
 	}
 }
