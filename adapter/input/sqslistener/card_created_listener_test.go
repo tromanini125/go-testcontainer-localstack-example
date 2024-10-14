@@ -39,12 +39,12 @@ func TestMain(m *testing.M) {
 	configuration.LoadConfig()
 	ctx := context.Background()
 
-	ctr, err := localstack.Run(ctx, "localstack/localstack:latest")
+	localStackContainer, err := localstack.Run(ctx, "localstack/localstack:latest")
 	if err != nil {
 		panic(err)
 	}
 
-	sqsClient, err = createSQSClient(ctx, ctr)
+	sqsClient, err = createSQSClient(ctx, localStackContainer)
 	if err != nil {
 		panic(err)
 	}
@@ -53,8 +53,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+	defer localStackContainer.Terminate(ctx)
 	defer mysqlcontainer.Terminate(ctx)
-
 }
 
 func createMysqlContainer(ctx context.Context) (*mysql.MySQLContainer, error) {

@@ -34,11 +34,8 @@ type cardCreatedListener struct {
 func (cl *cardCreatedListener) Listen(ctx context.Context) {
 	ticker = time.NewTicker(time.Second * 1)
 	func() {
-		for {
-			select {
-			case <-ticker.C:
-				cl.FetchMessages(ctx)
-			}
+		for range ticker.C {
+			cl.FetchMessages(ctx)
 		}
 	}()
 }
