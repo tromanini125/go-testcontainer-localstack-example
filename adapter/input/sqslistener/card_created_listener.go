@@ -2,13 +2,21 @@ package sqslistener
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/tromanini125/go-testcontainer-localstack-example/adapter/input/sqslistener/model"
+	"github.com/tromanini125/go-testcontainer-localstack-example/application/domain"
 	"github.com/tromanini125/go-testcontainer-localstack-example/application/input"
 	"github.com/tromanini125/go-testcontainer-localstack-example/configuration"
+)
+
+var (
+	ticker *time.Ticker
 )
 
 func NewCardCreatedListener(sqsClient *sqs.Client, svc input.SaveNewCardUseCase) *cardCreatedListener {
@@ -23,13 +31,19 @@ type cardCreatedListener struct {
 	service   input.SaveNewCardUseCase
 }
 
-func (l *cardCreatedListener) Listen() error {
-	l.GetMessages(context.Background())
-	return nil
+func (cl *cardCreatedListener) Listen(ctx context.Context) {
+	ticker := time.NewTicker(time.Second * 1)
+	func() {
+		for {
+			select {
+			case <-ticker.C:
+				cl.FetchMessages(ctx)
+			}
+		}
+	}()
 }
 
-// GetMessages uses the ReceiveMessage action to get messages from an Amazon SQS queue.
-func (actor *cardCreatedListener) GetMessages(ctx context.Context) ([]types.Message, error) {
+func (actor *cardCreatedListener) FetchMessages(ctx context.Context) {
 	var messages []types.Message
 	result, err := actor.sqsClient.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(configuration.Config.CardCreatedQueue.URL),
@@ -41,9 +55,47 @@ func (actor *cardCreatedListener) GetMessages(ctx context.Context) ([]types.Mess
 	} else {
 		messages = result.Messages
 	}
-	log.Printf("Got messages from queue")
 	for _, message := range messages {
-		log.Printf("message: %s, body: %v", *message.MessageId, message.Body)
+		log.Printf("Got new message from queue")
+		log.Printf("message: %s, body: %s", *message.MessageId, *message.Body)
+
+		cardCreatedEvent, err := parseMessage(message.Body)
+		if err != nil {
+			log.Printf("Couldn't parse message body into CardCreatedEvent. Skipping message.")
+		} else {
+			cardDomain := mapEventToDomain(cardCreatedEvent)
+			err = actor.service.Execute(cardDomain)
+			if err != nil {
+				log.Printf("Couldn't Process message %s", *message.MessageId)
+			} else {
+				log.Printf("Message %s processed successfully", *message.MessageId)
+			}
+		}
+
+		actor.sqsClient.DeleteMessage(ctx, &sqs.DeleteMessageInput{
+			QueueUrl:      aws.String(configuration.Config.CardCreatedQueue.URL),
+			ReceiptHandle: message.ReceiptHandle,
+		})
 	}
-	return messages, err
+}
+
+func parseMessage(messageBody *string) (*model.CardCreatedEvent, error) {
+	var cardCreatedEvent model.CardCreatedEvent
+	err := json.Unmarshal([]byte(*messageBody), &cardCreatedEvent)
+	if err != nil {
+		log.Printf("Couldn't parse message body into CardCreatedEvent. Here's why: %v\n", err)
+		return nil, err
+	}
+	log.Printf("Message parsed, body: %+v", &cardCreatedEvent)
+
+	return &cardCreatedEvent, nil
+}
+
+func mapEventToDomain(event *model.CardCreatedEvent) *domain.Card {
+	return &domain.Card{
+		CardHolderName: event.CardHolderName,
+		CardNumber:     event.CardNumber,
+		CVV:            event.CVV,
+		ExpiryDate:     event.ExpiryDate,
+	}
 }
