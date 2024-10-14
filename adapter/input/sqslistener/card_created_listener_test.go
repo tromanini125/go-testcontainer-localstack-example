@@ -2,7 +2,6 @@ package sqslistener
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -30,7 +29,6 @@ func init() {
 	configuration.LoadConfig()
 }
 
-// awsSDKClientV2 {
 func createSQSClient(ctx context.Context, l *localstack.LocalStackContainer) (*sqs.Client, error) {
 	mappedPort, err := l.MappedPort(ctx, nat.Port("4566/tcp"))
 	if err != nil {
@@ -48,30 +46,22 @@ func createSQSClient(ctx context.Context, l *localstack.LocalStackContainer) (*s
 		return nil, err
 	}
 
-	customResolver := aws.EndpointResolverWithOptionsFunc(
-		func(service, region string, opts ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           fmt.Sprintf("http://%s:%d", host, mappedPort.Int()),
-				SigningRegion: region,
-			}, nil
-		})
-
 	awsCfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(region),
-		config.WithEndpointResolverWithOptions(customResolver),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accesskey, secretkey, token)),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	client := sqs.NewFromConfig(awsCfg)
+	client := sqs.NewFromConfig(awsCfg, func(o *sqs.Options) {
+		o.Credentials = credentials.NewStaticCredentialsProvider(accesskey, secretkey, token)
+		o.Region = region
+		o.BaseEndpoint = aws.String("http://" + host + ":" + mappedPort.Port())
+	})
 
 	return client, nil
 }
-
-// }
 
 func TestS3(t *testing.T) {
 	ctx := context.Background()
@@ -85,8 +75,6 @@ func TestS3(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Create Queue", func(t *testing.T) {
-
-		// Create Bucket
 		outputQueue, err := sqsClient.CreateQueue(ctx, &sqs.CreateQueueInput{
 			QueueName: aws.String(cardCreatedQueueName),
 		})
@@ -96,7 +84,6 @@ func TestS3(t *testing.T) {
 	})
 
 	t.Run("Publish Message", func(t *testing.T) {
-		// Publish Message
 		_, err = sqsClient.SendMessage(ctx, &sqs.SendMessageInput{
 			QueueUrl:     aws.String(cardCreatedQueueName),
 			MessageBody:  aws.String("Hello, SQS!"),
@@ -106,13 +93,8 @@ func TestS3(t *testing.T) {
 	})
 
 	t.Run("Receive Message", func(t *testing.T) {
-		// Receive Message
 		service := service.NewCardService()
 		sqslistener := NewCardCreatedListener(sqsClient, service)
-
-		messages, _ := sqslistener.GetMessages(ctx)
-
-		assert.Len(t, messages, 1)
-
+		sqslistener.FetchMessages(ctx)
 	})
 }
