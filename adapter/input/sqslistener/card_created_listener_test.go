@@ -93,7 +93,7 @@ func TestS3(t *testing.T) {
 	})
 
 	t.Run("Receive Message", func(t *testing.T) {
-		service := service.NewCardService()
+		service := service.NewCardService(nil)
 		sqslistener := NewCardCreatedListener(sqsClient, service)
 		sqslistener.FetchMessages(ctx)
 	})

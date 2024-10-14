@@ -32,7 +32,7 @@ type cardCreatedListener struct {
 }
 
 func (cl *cardCreatedListener) Listen(ctx context.Context) {
-	ticker := time.NewTicker(time.Second * 1)
+	ticker = time.NewTicker(time.Second * 1)
 	func() {
 		for {
 			select {
@@ -64,7 +64,7 @@ func (actor *cardCreatedListener) FetchMessages(ctx context.Context) {
 			log.Printf("Couldn't parse message body into CardCreatedEvent. Skipping message.")
 		} else {
 			cardDomain := mapEventToDomain(cardCreatedEvent)
-			err = actor.service.Execute(cardDomain)
+			err = actor.service.Execute(ctx, cardDomain)
 			if err != nil {
 				log.Printf("Couldn't Process message %s", *message.MessageId)
 			} else {

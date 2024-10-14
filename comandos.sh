@@ -1,4 +1,12 @@
+#Create docker container
+docker run --rm -it -p 4566:4566 -p 4510-4559:4510-4559 localstack/localstack
 
+export AWS_ACCESS_KEY_ID="test"
+export AWS_SECRET_ACCESS_KEY="test"
+export AWS_DEFAULT_REGION="us-east-1"
+
+##Criar fila
+aws --endpoint-url=http://localhost:4566 awslocal sqs create-queue --queue-name test-queue
 
 ##Listar filas
 aws --endpoint-url=http://localhost:4566 sqs list-queues
