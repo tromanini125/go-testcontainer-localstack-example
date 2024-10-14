@@ -33,7 +33,7 @@ func main() {
 		o.BaseEndpoint = aws.String("http://localhost:4566")
 	})
 
-	repository := persistence.NewPersistence()
+	repository := persistence.NewCardRepository()
 	service := service.NewCardService(repository)
 	cardCreatedListener := sqslistener.NewCardCreatedListener(sqsClient, service)
 	cardCreatedListener.Listen(ctx)

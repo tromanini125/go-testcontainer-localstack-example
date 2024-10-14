@@ -12,7 +12,7 @@ import (
 type persistence struct {
 }
 
-func NewPersistence() output.CardPersister {
+func NewCardRepository() output.CardPersister {
 	return &persistence{}
 }
 
@@ -35,8 +35,14 @@ func (p *persistence) CreateCard(ctx context.Context, cardDomain *domain.Card) e
 }
 
 func (p *persistence) FindCardByNumber(ctx context.Context, cardNumber string) (*domain.Card, error) {
-	// Implement the logic to create a new card in the database
-	return nil, nil
+	db, err := databaseconfig.GetConnection()
+	if err != nil {
+		return nil, err
+	}
+	var cardEntity *model.Card
+	db.Where("card_number = ?", cardNumber).First(&cardEntity)
+	// SELECT * FROM cards WHERE card_number = 'cardNumber' ORDER BY id LIMIT 1;
+	return mapEntityToDomain(cardEntity), nil
 }
 
 func mapDomainToEntity(domain *domain.Card) *model.Card {
@@ -45,5 +51,16 @@ func mapDomainToEntity(domain *domain.Card) *model.Card {
 		CardNumber:     domain.CardNumber,
 		CVV:            domain.CVV,
 		ExpiryDate:     domain.ExpiryDate,
+	}
+}
+
+func mapEntityToDomain(entity *model.Card) *domain.Card {
+	Id := int64(entity.ID)
+	return &domain.Card{
+		CardId:         &Id,
+		CardHolderName: entity.CardHolderName,
+		CardNumber:     entity.CardNumber,
+		CVV:            entity.CVV,
+		ExpiryDate:     entity.ExpiryDate,
 	}
 }
