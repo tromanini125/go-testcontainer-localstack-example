@@ -6,6 +6,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.31.0
 	github.com/aws/aws-sdk-go-v2/config v1.27.40
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.35.4
+	gorm.io/driver/mysql v1.5.7
+	gorm.io/gorm v1.25.12
 )
 
 require (
@@ -17,8 +19,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/mysql v1.5.7 // indirect
-	gorm.io/gorm v1.25.12 // indirect
 )
 
 require (
